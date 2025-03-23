@@ -1,4 +1,3 @@
-// controllers/danhMucSachController.js
 const DanhMucSach = require('../models/DanhMucSach');
 const Sach = require('../models/Sach');
 

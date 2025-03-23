@@ -1,7 +1,6 @@
 // controllers/nhanVienController.js
 const NhanVien = require('../models/NhanVien');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 
 // Lấy tất cả nhân viên
 exports.getAllNhanVien = async (req, res) => {
@@ -10,7 +9,6 @@ exports.getAllNhanVien = async (req, res) => {
         const nhanVienList = await NhanVien.find().select('-Password').sort({ HoTenNV: 1 });
 
         res.status(200).json({
-            success: true,
             count: nhanVienList.length,
             data: nhanVienList
         });
@@ -49,9 +47,9 @@ exports.getNhanVienById = async (req, res) => {
 };
 
 // Lấy nhân viên theo mã số
-exports.getNhanVienByMaSo = async (req, res) => {
+exports.getNhanVienByMa = async (req, res) => {
     try {
-        const nhanVien = await NhanVien.findOne({ MSNV: req.params.maSo }).select('-Password');
+        const nhanVien = await NhanVien.findOne({ MSNV: req.params.MSNV }).select('-Password');
 
         if (!nhanVien) {
             return res.status(404).json({
@@ -191,125 +189,11 @@ exports.deleteNhanVien = async (req, res) => {
     }
 };
 
-// Đăng nhập
-exports.login = async (req, res) => {
-    try {
-        const { MSNV, Password } = req.body;
-
-        // Kiểm tra xem có nhập mã số nhân viên và mật khẩu không
-        if (!MSNV || !Password) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vui lòng nhập mã số nhân viên và mật khẩu'
-            });
-        }
-
-        // Tìm nhân viên theo mã số
-        const nhanVien = await NhanVien.findOne({ MSNV });
-
-        if (!nhanVien) {
-            return res.status(401).json({
-                success: false,
-                message: 'Mã số nhân viên hoặc mật khẩu không chính xác'
-            });
-        }
-
-        // Kiểm tra mật khẩu
-        const isMatch = await bcrypt.compare(Password, nhanVien.Password);
-
-        if (!isMatch) {
-            return res.status(401).json({
-                success: false,
-                message: 'Mã số nhân viên hoặc mật khẩu không chính xác'
-            });
-        }
-
-        // Tạo JWT token
-        const token = jwt.sign(
-            { id: nhanVien._id, MSNV: nhanVien.MSNV, Chucvu: nhanVien.Chucvu },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRE || '1d' }
-        );
-
-        res.status(200).json({
-            success: true,
-            message: 'Đăng nhập thành công',
-            token,
-            data: {
-                id: nhanVien._id,
-                MSNV: nhanVien.MSNV,
-                HoTenNV: nhanVien.HoTenNV,
-                Chucvu: nhanVien.Chucvu
-            }
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Không thể đăng nhập',
-            error: error.message
-        });
-    }
-};
-
-// Đổi mật khẩu
-exports.changePassword = async (req, res) => {
-    try {
-        const { currentPassword, newPassword } = req.body;
-
-        // Kiểm tra mật khẩu cũ và mới
-        if (!currentPassword || !newPassword) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vui lòng nhập mật khẩu cũ và mật khẩu mới'
-            });
-        }
-
-        // Tìm nhân viên theo ID từ middleware auth
-        const nhanVien = await NhanVien.findById(req.user.id);
-
-        if (!nhanVien) {
-            return res.status(404).json({
-                success: false,
-                message: 'Không tìm thấy nhân viên'
-            });
-        }
-
-        // Kiểm tra mật khẩu cũ
-        const isMatch = await bcrypt.compare(currentPassword, nhanVien.Password);
-
-        if (!isMatch) {
-            return res.status(401).json({
-                success: false,
-                message: 'Mật khẩu hiện tại không chính xác'
-            });
-        }
-
-        // Mã hóa mật khẩu mới
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-        // Cập nhật mật khẩu mới
-        nhanVien.Password = hashedPassword;
-        await nhanVien.save();
-
-        res.status(200).json({
-            success: true,
-            message: 'Đổi mật khẩu thành công'
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Không thể đổi mật khẩu',
-            error: error.message
-        });
-    }
-};
 
 // Lấy thông tin nhân viên hiện tại (theo token)
 exports.getCurrentNhanVien = async (req, res) => {
     try {
         const nhanVien = await NhanVien.findById(req.user.id).select('-Password');
-
         res.status(200).json({
             success: true,
             data: nhanVien

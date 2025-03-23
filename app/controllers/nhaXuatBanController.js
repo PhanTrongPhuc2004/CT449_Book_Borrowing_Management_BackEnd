@@ -183,7 +183,7 @@ exports.deleteNhaXuatBan = async (req, res) => {
 // Lấy tất cả sách thuộc một nhà xuất bản
 exports.getSachByNhaXuatBan = async (req, res) => {
     try {
-        const sachList = await Sach.find({ MaNXB: req.params.maNXB })
+        const sachList = await Sach.find({ MaNXB: req.params.id })
             .sort({ TenSach: 1 });
 
         res.status(200).json({

@@ -2,16 +2,11 @@
 const express = require('express');
 const router = express.Router();
 const nhaXuatBanController = require('../controllers/nhaXuatBanController');
-const authMiddleware = require('../middlewares/auth');
+const authController = require('../controllers/xacThucController');
 
-// Route bảo vệ - yêu cầu xác thực
-router.use(authMiddleware.protect);
 
 // Lấy tất cả nhà xuất bản
 router.get('/', nhaXuatBanController.getAllNhaXuatBan);
-
-// Tìm kiếm nhà xuất bản
-router.get('/search', nhaXuatBanController.searchNhaXuatBan);
 
 // Lấy thông tin nhà xuất bản theo ID
 router.get('/:id', nhaXuatBanController.getNhaXuatBanById);
@@ -20,10 +15,11 @@ router.get('/:id', nhaXuatBanController.getNhaXuatBanById);
 router.get('/ma/:maNXB', nhaXuatBanController.getNhaXuatBanByMa);
 
 // Lấy danh sách sách theo nhà xuất bản
-router.get('/:id/sach', nhaXuatBanController.getSachByNhaXuatBan);
+router.get('/sach/:id', nhaXuatBanController.getSachByNhaXuatBan);
 
-// Yêu cầu quyền nhân viên hoặc admin cho các route sau
-router.use(authMiddleware.restrictTo('nhanvien', 'admin'));
+// Route bảo vệ - yêu cầu xác thực
+router.use(authController.protect);
+router.use(authController.restrictTo('nhanvien'));
 
 // Thêm nhà xuất bản mới
 router.post('/', nhaXuatBanController.createNhaXuatBan);
@@ -34,7 +30,5 @@ router.put('/:id', nhaXuatBanController.updateNhaXuatBan);
 // Xóa nhà xuất bản
 router.delete('/:id', nhaXuatBanController.deleteNhaXuatBan);
 
-// Kiểm tra mã nhà xuất bản đã tồn tại
-// router.get('/check/:maNXB', nhaXuatBanController.checkMaNXBExists);
 
 module.exports = router;

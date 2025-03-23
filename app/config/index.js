@@ -1,7 +1,3 @@
-const dotenv = require('dotenv');
-
-// Load biến môi trường từ file .env
-dotenv.config();
 
 module.exports = {
     app: {
@@ -15,7 +11,4 @@ module.exports = {
         thoiHanMuon: process.env.THOI_HAN_MUON || 14, // 14 ngày
         soSachToiDa: process.env.SO_SACH_TOI_DA || 5 // 5 quyển
     },
-    tienPhat: {
-        mucPhatMoiNgay: process.env.MUC_PHAT_MOI_NGAY || 5000 // 5000 VND/ngày
-    }
 };

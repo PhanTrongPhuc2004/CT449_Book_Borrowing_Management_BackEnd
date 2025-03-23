@@ -1,21 +1,26 @@
 const express = require('express');
 const muonTraController = require('../controllers/muonTraController');
-const authMiddleware = require('../middlewares/auth');
+const authController = require('../controllers/xacThucController');
 
 const router = express.Router();
 
-// Áp dụng bảo vệ cho tất cả routes
-router.use(authMiddleware.protect);
+// Route bảo vệ - yêu cầu xác thực
+router.use(authController.protect);
+// router.use(authController.restrictTo('nhanvien'));
 
-// Routes cho người dùng bình thường
+// mượn sách
+router.post('/muon', muonTraController.muonSach);
+
+// trả sách
+router.post('/tra', muonTraController.traSach);
+
+// lấy danh sách đang mượn
 router.get('/dangmuon', muonTraController.danhSachDangMuon);
+
+// lấy lịch sử mượn sách của đọc giả
 router.get('/lichsu/:MaDocGia', muonTraController.lichSuMuonCuaDocGia);
 
-// Routes chỉ cho thủ thư và admin
-router.use(authMiddleware.restrictTo('thủ thư', 'admin'));
 
-router.post('/muon', muonTraController.muonSach);
-router.post('/tra', muonTraController.traSach);
-router.get('/quahan', muonTraController.danhSachQuaHan);
+
 
 module.exports = router;

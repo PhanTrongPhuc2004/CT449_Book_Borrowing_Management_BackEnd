@@ -1,20 +1,24 @@
 const express = require('express');
 const sachController = require('../controllers/sachController');
-const authMiddleware = require('../middlewares/auth');
+const authController = require('../controllers/xacThucController');
 
 const router = express.Router();
 
-// Routes công khai
+// lấy tất cả sách
 router.get('/', sachController.getAllSach);
-router.get('/search', sachController.searchSach);
-router.get('/:MaSach', sachController.getSachByMa);
 
-// Routes yêu cầu xác thực
-router.use(authMiddleware.protect);
-router.use(authMiddleware.restrictTo('admin', 'thủ thư'));
+// Tìm kiếm sách theo id
+router.get('/:id', sachController.getSachById);
+
+// Tìm kiếm sách theo mã
+router.get('/ma/:MaSach', sachController.getSachByMa);
+
+// Route bảo vệ - yêu cầu xác thực
+router.use(authController.protect);
+router.use(authController.restrictTo('nhanvien'));
 
 router.post('/', sachController.createSach);
-router.put('/:MaSach', sachController.updateSach);
-router.delete('/:MaSach', sachController.deleteSach);
+router.put('/:id', sachController.updateSach);
+router.delete('/:id', sachController.deleteSach);
 
 module.exports = router;

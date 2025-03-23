@@ -11,7 +11,7 @@ const nhaXuatBanRoutes = require('./app/routes/nhaXuatBanRoutes');
 const muonTraRoutes = require('./app/routes/muonTraRoutes');
 const nhanVienRoutes = require('./app/routes/nhanVienRoutes');
 const danhMucSachRoutes = require('./app/routes/danhMucSachRoutes');
-const authRoutes = require('./app/routes/xacThucRoutes');
+const xacThucRoutes = require('./app/routes/xacThucRoutes');
 
 // Logger
 const app = express();
@@ -29,7 +29,7 @@ app.use('/api/nhaxuatban', nhaXuatBanRoutes);
 app.use('/api/muontra', muonTraRoutes);
 app.use('/api/nhanvien', nhanVienRoutes);
 app.use('/api/danhmuc', danhMucSachRoutes);
-app.use('/api/auth', authRoutes);
+app.use('/api/xacthuc', xacThucRoutes);
 
 // Route mặc định
 app.get("/", (req, res) => {

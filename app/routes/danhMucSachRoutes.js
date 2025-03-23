@@ -2,10 +2,9 @@
 const express = require('express');
 const router = express.Router();
 const danhMucSachController = require('../controllers/danhMucSachController');
-const { authenticate } = require('../middlewares/auth');
-// const { authorizeAdmin, authorizeLibrarian } = require('../middlewares/roleMiddleware');
+const authController = require('../controllers/xacThucController');
 
-// Route không cần xác thực (public)
+
 // Lấy danh sách tất cả danh mục sách
 router.get('/', danhMucSachController.getAllDanhMucSach);
 
@@ -24,26 +23,17 @@ router.get('/sach/:maDanhMuc', danhMucSachController.getSachByDanhMuc);
 // Kiểm tra danh mục sách tồn tại
 router.get('/check/:maDanhMuc', danhMucSachController.checkDanhMucExists);
 
-// Routes cần xác thực và phân quyền
+// Route bảo vệ - yêu cầu xác thực
+router.use(authController.protect);
+router.use(authController.restrictTo('nhanvien'));
+
 // Tạo danh mục sách mới (chỉ admin và thủ thư)
-// router.post('/',
-//     authenticate,
-//     authorizeLibrarian,
-//     danhMucSachController.createDanhMucSach
-// );
+router.post('/',danhMucSachController.createDanhMucSach);
 
-// // Cập nhật thông tin danh mục sách (chỉ admin và thủ thư)
-// router.put('/:id',
-//     authenticate,
-//     authorizeLibrarian,
-//     danhMucSachController.updateDanhMucSach
-// );
+// Cập nhật thông tin danh mục sách (chỉ admin và thủ thư)
+router.put('/:id',danhMucSachController.updateDanhMucSach);
 
-// // Xóa danh mục sách (chỉ admin)
-// router.delete('/:id',
-//     authenticate,
-//     authorizeAdmin,
-//     danhMucSachController.deleteDanhMucSach
-// );
+// Xóa danh mục sách (chỉ admin)
+router.delete('/:id',danhMucSachController.deleteDanhMucSach);
 
 module.exports = router;

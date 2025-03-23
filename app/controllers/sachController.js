@@ -1,99 +1,299 @@
-const sachService = require('../services/sachService');
+const Sach = require('../models/Sach');
 
 // Lấy danh sách tất cả sách
-exports.getAllSach = async (req, res, next) => {
+exports.getAllSach = async (req, res) => {
     try {
-        const sachList = await sachService.getAllSach(req.query);
+        // Xử lý filter từ query
+        const filter = {};
+
+        if (req.query.TenSach) {
+            filter.TenSach = { $regex: req.query.TenSach, $options: 'i' };
+        }
+
+        if (req.query.MaDanhMuc) {
+            filter.MaDanhMuc = req.query.MaDanhMuc;
+        }
+
+        if (req.query.MaNXB) {
+            filter.MaNXB = req.query.MaNXB;
+        }
+
+        if (req.query.NamXuatBan) {
+            filter.NamXuatBan = req.query.NamXuatBan;
+        }
+
+        // Thực hiện truy vấn với populate
+        const sachList = await Sach.find(filter)
+            .populate('MaNXB', 'TenNXB')
+            .populate('MaDanhMuc', 'TenDanhMuc')
+            .sort({ TenSach: 1 });
+
         res.status(200).json({
-            status: 'success',
-            results: sachList.length,
-            data: { sach: sachList }
+            success: true,
+            count: sachList.length,
+            data: sachList
         });
-    } catch (err) {
-        next(err);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Không thể lấy danh sách sách',
+            error: error.message
+        });
     }
 };
 
 // Lấy thông tin một sách theo MaSach
-exports.getSachByMa = async (req, res, next) => {
+exports.getSachByMa = async (req, res) => {
     try {
-        const sach = await sachService.getSachByMa(req.params.MaSach);
+        const sach = await Sach.findOne({ MaSach: req.params.MaSach })
+            .populate('MaNXB', 'TenNXB')
+            .populate('MaDanhMuc', 'TenDanhMuc');
+
         if (!sach) {
             return res.status(404).json({
-                status: 'fail',
+                success: false,
                 message: 'Không tìm thấy sách với mã này'
             });
         }
+
         res.status(200).json({
-            status: 'success',
-            data: { sach }
+            success: true,
+            data: sach
         });
-    } catch (err) {
-        next(err);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Không thể lấy thông tin sách',
+            error: error.message
+        });
+    }
+};
+
+// Lấy thông tin một sách theo ID
+exports.getSachById = async (req, res) => {
+    try {
+        const sach = await Sach.findById(req.params.id);
+        if (!sach) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy sách với ID này'
+            });
+        }
+        res.status(200).json({
+            success: true,
+            data: sach
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Không thể lấy thông tin sách',
+            error: error.message
+        });
     }
 };
 
 // Thêm sách mới
-exports.createSach = async (req, res, next) => {
+exports.createSach = async (req, res) => {
     try {
-        const newSach = await sachService.createSach(req.body);
+        // Kiểm tra mã sách đã tồn tại chưa
+        const existingSach = await Sach.findOne({ MaSach: req.body.MaSach });
+
+        if (existingSach) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mã sách này đã tồn tại'
+            });
+        }
+
+        const newSach = await Sach.create(req.body);
+
         res.status(201).json({
-            status: 'success',
-            data: { sach: newSach }
+            success: true,
+            message: 'Thêm sách mới thành công',
+            data: newSach
         });
-    } catch (err) {
-        next(err);
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: 'Không thể thêm sách mới',
+            error: error.message
+        });
     }
 };
 
 // Cập nhật thông tin sách
-exports.updateSach = async (req, res, next) => {
+exports.updateSach = async (req, res) => {
     try {
-        const sach = await sachService.updateSach(req.params.MaSach, req.body);
+        // Nếu cập nhật MaSach, kiểm tra mã mới đã tồn tại chưa
+        if (req.body.MaSach) {
+            const existingSach = await Sach.findOne({
+                MaSach: req.body.MaSach,
+                _id: { $ne: req.params.id }
+            });
+
+            if (existingSach) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Mã sách này đã tồn tại'
+                });
+            }
+        }
+
+        const sach = await Sach.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true, runValidators: true }
+        ).populate('MaNXB', 'TenNXB')
+            .populate('MaDanhMuc', 'TenDanhMuc');
+
         if (!sach) {
             return res.status(404).json({
-                status: 'fail',
+                success: false,
+                message: 'Không tìm thấy sách với ID này'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Cập nhật sách thành công',
+            data: sach
+        });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: 'Không thể cập nhật sách',
+            error: error.message
+        });
+    }
+};
+
+// Cập nhật thông tin sách theo MaSach
+exports.updateSachByMa = async (req, res) => {
+    try {
+        // Nếu cập nhật MaSach, kiểm tra mã mới đã tồn tại chưa
+        if (req.body.MaSach && req.body.MaSach !== req.params.MaSach) {
+            const existingSach = await Sach.findOne({
+                MaSach: req.body.MaSach
+            });
+
+            if (existingSach) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Mã sách này đã tồn tại'
+                });
+            }
+        }
+
+        const sach = await Sach.findOneAndUpdate(
+            { MaSach: req.params.MaSach },
+            req.body,
+            { new: true, runValidators: true }
+        ).populate('MaNXB', 'TenNXB')
+            .populate('MaDanhMuc', 'TenDanhMuc');
+
+        if (!sach) {
+            return res.status(404).json({
+                success: false,
                 message: 'Không tìm thấy sách với mã này'
             });
         }
+
         res.status(200).json({
-            status: 'success',
-            data: { sach }
+            success: true,
+            message: 'Cập nhật sách thành công',
+            data: sach
         });
-    } catch (err) {
-        next(err);
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: 'Không thể cập nhật sách',
+            error: error.message
+        });
     }
 };
 
 // Xóa sách
-exports.deleteSach = async (req, res, next) => {
+exports.deleteSach = async (req, res) => {
     try {
-        const sach = await sachService.deleteSach(req.params.MaSach);
+        const sach = await Sach.findByIdAndDelete(req.params.id);
+
         if (!sach) {
             return res.status(404).json({
-                status: 'fail',
+                success: false,
+                message: 'Không tìm thấy sách với ID này'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Xóa sách thành công'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Không thể xóa sách',
+            error: error.message
+        });
+    }
+};
+
+// Xóa sách theo MaSach
+exports.deleteSachByMa = async (req, res) => {
+    try {
+        const sach = await Sach.findOneAndDelete({ MaSach: req.params.MaSach });
+
+        if (!sach) {
+            return res.status(404).json({
+                success: false,
                 message: 'Không tìm thấy sách với mã này'
             });
         }
-        res.status(204).json({
-            status: 'success',
-            data: null
+
+        res.status(200).json({
+            success: true,
+            message: 'Xóa sách thành công'
         });
-    } catch (err) {
-        next(err);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Không thể xóa sách',
+            error: error.message
+        });
     }
 };
 
 // Tìm kiếm sách
-exports.searchSach = async (req, res, next) => {
+exports.searchSach = async (req, res) => {
     try {
-        const result = await sachService.searchSach(req.query);
+        const keyword = req.query.keyword;
+
+        if (!keyword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vui lòng cung cấp từ khóa tìm kiếm'
+            });
+        }
+
+        const sachList = await Sach.find({
+            $or: [
+                { TenSach: { $regex: keyword, $options: 'i' } },
+                { NguonGoc: { $regex: keyword, $options: 'i' } },
+                { MoTa: { $regex: keyword, $options: 'i' } }
+            ]
+        })
+            .populate('MaNXB', 'TenNXB')
+            .populate('MaDanhMuc', 'TenDanhMuc');
+
         res.status(200).json({
-            status: 'success',
-            results: result.length,
-            data: { sach: result }
+            success: true,
+            count: sachList.length,
+            data: sachList
         });
-    } catch (err) {
-        next(err);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Không thể thực hiện tìm kiếm sách',
+            error: error.message
+        });
     }
 };

@@ -1,99 +1,251 @@
-const docGiaService = require('../services/docGiaService');
+// controllers/docGiaController.js
+const DocGia = require('../models/DocGia');
+const bcrypt = require('bcryptjs');
 
-// Lấy danh sách tất cả độc giả
-exports.getAllDocGia = async (req, res, next) => {
+// Lấy tất cả độc giả
+exports.getAllDocGia = async (req, res) => {
     try {
-        const docGiaList = await docGiaService.getAllDocGia(req.query);
+        // Loại bỏ trường password trong kết quả trả về
+        const docGiaList = await DocGia.find().select('-Password').sort({ Ten: 1 });
+
         res.status(200).json({
-            status: 'success',
-            results: docGiaList.length,
-            data: { docGia: docGiaList }
+            count: docGiaList.length,
+            data: docGiaList
         });
-    } catch (err) {
-        next(err);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Không thể lấy danh sách độc giả',
+            error: error.message
+        });
     }
 };
 
-// Lấy thông tin một độc giả theo mã
-exports.getDocGiaByMa = async (req, res, next) => {
+// Lấy chi tiết một độc giả theo ID
+exports.getDocGiaById = async (req, res) => {
     try {
-        const docGia = await docGiaService.getDocGiaByMa(req.params.MaDocGia);
+        const docGia = await DocGia.findById(req.params.id).select('-Password');
+
         if (!docGia) {
             return res.status(404).json({
-                status: 'fail',
+                success: false,
+                message: 'Không tìm thấy độc giả với ID này'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: docGia
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Không thể lấy thông tin độc giả',
+            error: error.message
+        });
+    }
+};
+
+// Lấy độc giả theo mã
+exports.getDocGiaByMa = async (req, res) => {
+    try {
+        const docGia = await DocGia.findOne({ MaDG: req.params.MaDG }).select('-Password');
+
+        if (!docGia) {
+            return res.status(404).json({
+                success: false,
                 message: 'Không tìm thấy độc giả với mã này'
             });
         }
+
         res.status(200).json({
-            status: 'success',
-            data: { docGia }
+            success: true,
+            data: docGia
         });
-    } catch (err) {
-        next(err);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Không thể lấy thông tin độc giả',
+            error: error.message
+        });
     }
 };
 
-// Thêm độc giả mới
-exports.createDocGia = async (req, res, next) => {
+// Tạo độc giả mới
+exports.createDocGia = async (req, res) => {
     try {
-        const newDocGia = await docGiaService.createDocGia(req.body);
-        res.status(201).json({
-            status: 'success',
-            data: { docGia: newDocGia }
+        // Kiểm tra xem mã độc giả đã tồn tại chưa
+        const existingDocGia = await DocGia.findOne({ MaDG: req.body.MaDG });
+
+        if (existingDocGia) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mã độc giả này đã tồn tại'
+            });
+        }
+
+        // Kiểm tra email đã tồn tại chưa
+        const existingEmail = await DocGia.findOne({ Email: req.body.Email });
+
+        if (existingEmail) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email này đã được sử dụng'
+            });
+        }
+
+        // Mã hóa mật khẩu
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(req.body.Password, salt);
+
+        const docGia = await DocGia.create({
+            ...req.body,
+            Password: hashedPassword
         });
-    } catch (err) {
-        next(err);
+
+        // Không trả về mật khẩu trong response
+        const response = {
+            ...docGia._doc,
+            Password: undefined
+        };
+
+        res.status(201).json({
+            success: true,
+            message: 'Tạo độc giả mới thành công',
+            data: response
+        });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: 'Không thể tạo độc giả mới',
+            error: error.message
+        });
     }
 };
 
 // Cập nhật thông tin độc giả
-exports.updateDocGia = async (req, res, next) => {
+exports.updateDocGia = async (req, res) => {
     try {
-        const docGia = await docGiaService.updateDocGia(req.params.MaDocGia, req.body);
+        // Nếu cập nhật MaDG, kiểm tra xem mã mới đã tồn tại chưa
+        if (req.body.MaDG) {
+            const existingDocGia = await DocGia.findOne({
+                MaDG: req.body.MaDG,
+                _id: { $ne: req.params.id }
+            });
+
+            if (existingDocGia) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Mã độc giả này đã tồn tại'
+                });
+            }
+        }
+
+        // Nếu cập nhật Email, kiểm tra xem email mới đã tồn tại chưa
+        if (req.body.Email) {
+            const existingEmail = await DocGia.findOne({
+                Email: req.body.Email,
+                _id: { $ne: req.params.id }
+            });
+
+            if (existingEmail) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Email này đã được sử dụng'
+                });
+            }
+        }
+
+        // Nếu cập nhật mật khẩu, mã hóa mật khẩu mới
+        if (req.body.Password) {
+            const salt = await bcrypt.genSalt(10);
+            req.body.Password = await bcrypt.hash(req.body.Password, salt);
+        }
+
+        const docGia = await DocGia.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true, runValidators: true }
+        ).select('-Password');
+
         if (!docGia) {
             return res.status(404).json({
-                status: 'fail',
-                message: 'Không tìm thấy độc giả với mã này'
+                success: false,
+                message: 'Không tìm thấy độc giả với ID này'
             });
         }
+
         res.status(200).json({
-            status: 'success',
-            data: { docGia }
+            success: true,
+            message: 'Cập nhật độc giả thành công',
+            data: docGia
         });
-    } catch (err) {
-        next(err);
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: 'Không thể cập nhật độc giả',
+            error: error.message
+        });
     }
 };
 
 // Xóa độc giả
-exports.deleteDocGia = async (req, res, next) => {
+exports.deleteDocGia = async (req, res) => {
     try {
-        const docGia = await docGiaService.deleteDocGia(req.params.MaDocGia);
+        const docGia = await DocGia.findByIdAndDelete(req.params.id);
+
         if (!docGia) {
             return res.status(404).json({
-                status: 'fail',
-                message: 'Không tìm thấy độc giả với mã này'
+                success: false,
+                message: 'Không tìm thấy độc giả với ID này'
             });
         }
-        res.status(204).json({
-            status: 'success',
-            data: null
+
+        res.status(200).json({
+            success: true,
+            message: 'Xóa độc giả thành công'
         });
-    } catch (err) {
-        next(err);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Không thể xóa độc giả',
+            error: error.message
+        });
     }
 };
 
 // Tìm kiếm độc giả
-exports.searchDocGia = async (req, res, next) => {
+exports.searchDocGia = async (req, res) => {
     try {
-        const result = await docGiaService.searchDocGia(req.query.keyword);
+        const keyword = req.query.keyword;
+
+        if (!keyword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vui lòng cung cấp từ khóa tìm kiếm'
+            });
+        }
+
+        const docGiaList = await DocGia.find({
+            $or: [
+                { MaDG: { $regex: keyword, $options: 'i' } },
+                { HoLot: { $regex: keyword, $options: 'i' } },
+                { Ten: { $regex: keyword, $options: 'i' } },
+                { Email: { $regex: keyword, $options: 'i' } },
+                { DienThoai: { $regex: keyword, $options: 'i' } }
+            ]
+        }).select('-Password');
+
         res.status(200).json({
-            status: 'success',
-            results: result.length,
-            data: { docGia: result }
+            success: true,
+            count: docGiaList.length,
+            data: docGiaList
         });
-    } catch (err) {
-        next(err);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Không thể thực hiện tìm kiếm độc giả',
+            error: error.message
+        });
     }
 };
