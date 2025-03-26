@@ -3,13 +3,27 @@ const TheoDoiMuonSach = require('../models/TheoDoiMuonSach');
 const DocGia = require('../models/DocGia');
 const Sach = require('../models/Sach');
 
+// Lấy tất cả thông tin mượn sách
+exports.getAll = async (req, res, next) => {
+    try {
+        const theoDoiList = await TheoDoiMuonSach.find()
+        res.json({
+            status: 'success',
+            data: theoDoiList
+        });
+    } catch (error) {
+        next(error);
+    }
+
+}
+
 // Mượn sách
 exports.muonSach = async (req, res, next) => {
     try {
-        const { MaDocGia, MaSach } = req.body;
+        const { MaDG, MaSach } = req.body;
 
         // Kiểm tra dữ liệu đầu vào
-        if (!MaDocGia || !MaSach) {
+        if (!MaDG || !MaSach) {
             return res.status(400).json({
                 status: 'fail',
                 message: 'Vui lòng cung cấp mã độc giả và mã sách'
@@ -17,11 +31,23 @@ exports.muonSach = async (req, res, next) => {
         }
 
         // Kiểm tra độc giả có tồn tại
-        const docGia = await DocGia.findOne({ MaDocGia });
+        const docGia = await DocGia.findOne({ MaDG });
         if (!docGia) {
             return res.status(404).json({
                 status: 'fail',
                 message: 'Không tìm thấy độc giả với mã này'
+            });
+        }
+
+        // Kiểm tra số lượng sách đang mượn của độc giả
+        const soSachDangMuon = await TheoDoiMuonSach.countDocuments({
+            MaDG: docGia._id,
+            TrangThai: 'Đang mượn'
+        });
+        if (soSachDangMuon >= 5) {
+            return res.status(400).json({
+                status: 'fail',
+                message: 'Bạn đã mượn 5 quyển sách, không thể mượn thêm!'
             });
         }
 
@@ -42,23 +68,9 @@ exports.muonSach = async (req, res, next) => {
             });
         }
 
-        // Kiểm tra độc giả có đang mượn sách này không
-        const dangMuon = await TheoDoiMuonSach.findOne({
-            MaDocGia: docGia._id,
-            MaSach: sach._id,
-            NgayTra: null
-        });
-
-        if (dangMuon) {
-            return res.status(400).json({
-                status: 'fail',
-                message: 'Độc giả đang mượn sách này'
-            });
-        }
-
         // Tạo bản ghi mượn sách mới
         const muonSach = new TheoDoiMuonSach({
-            MaDocGia: docGia._id,
+            MaDG: docGia._id,
             MaSach: sach._id,
             NgayMuon: new Date(),
             NgayTra: null,
@@ -68,8 +80,11 @@ exports.muonSach = async (req, res, next) => {
         await muonSach.save();
 
         // Cập nhật số lượng sách
+        // console.log('Trước khi cập nhật:', sach.SoQuyen);
         sach.SoQuyen -= 1;
+        // console.log('Sau khi cập nhật:', sach.SoQuyen);
         await sach.save();
+        // console.log('Đã lưu vào DB:', sach.SoQuyen);
 
         res.status(201).json({
             status: 'success',
@@ -83,10 +98,10 @@ exports.muonSach = async (req, res, next) => {
 // Trả sách
 exports.traSach = async (req, res, next) => {
     try {
-        const { MaDocGia, MaSach } = req.body;
+        const { MaDG, MaSach } = req.body;
 
         // Kiểm tra dữ liệu đầu vào
-        if (!MaDocGia || !MaSach) {
+        if (!MaDG || !MaSach) {
             return res.status(400).json({
                 status: 'fail',
                 message: 'Vui lòng cung cấp mã độc giả và mã sách'
@@ -94,7 +109,7 @@ exports.traSach = async (req, res, next) => {
         }
 
         // Kiểm tra độc giả
-        const docGia = await DocGia.findOne({ MaDocGia });
+        const docGia = await DocGia.findOne({ MaDG });
         if (!docGia) {
             return res.status(404).json({
                 status: 'fail',
@@ -110,13 +125,14 @@ exports.traSach = async (req, res, next) => {
                 message: 'Không tìm thấy sách với mã này'
             });
         }
-
+        
         // Tìm bản ghi mượn sách
         const muonSach = await TheoDoiMuonSach.findOne({
-            MaDocGia: docGia._id,
+            MaDG: docGia._id,
             MaSach: sach._id,
             NgayTra: null
         });
+        // console.log(sach,docGia,muonSach);
 
         if (!muonSach) {
             return res.status(404).json({
@@ -149,24 +165,24 @@ exports.danhSachDangMuon = async (req, res, next) => {
         const query = { NgayTra: null };
 
         // Nếu có filter theo MaDocGia
-        if (req.query.MaDocGia) {
-            const docGia = await DocGia.findOne({ MaDocGia: req.query.MaDocGia });
+        if (req.query.MaDG) {
+            const docGia = await DocGia.findOne({ MaDocGia: req.query.MaDG });
             if (docGia) {
-                query.MaDocGia = docGia._id;
+                query.MaDG = docGia._id;
             }
         }
 
         // Lấy danh sách mượn sách
         const danhSach = await TheoDoiMuonSach.find(query)
-            .populate({
-                path: 'MaDocGia',
-                select: 'MaDocGia HoLot Ten DienThoai'
-            })
-            .populate({
-                path: 'MaSach',
-                select: 'MaSach TenSach MaDanhMuc',
-                populate: { path: 'MaDanhMuc', select: 'TenDanhMuc' }
-            });
+            // .populate({
+            //     path: 'MaDocGia',
+            //     select: 'MaDocGia HoLot Ten DienThoai'
+            // })
+            // .populate({
+            //     path: 'MaSach',
+            //     select: 'MaSach TenSach MaDanhMuc',
+            //     populate: { path: 'MaDanhMuc', select: 'TenDanhMuc' }
+            // });
 
         res.status(200).json({
             status: 'success',

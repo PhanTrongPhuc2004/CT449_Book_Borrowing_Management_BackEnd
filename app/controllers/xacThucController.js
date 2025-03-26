@@ -69,6 +69,65 @@ exports.login = async (req, res, next) => {
     }
 };
 
+// Ham dang ky
+exports.register = async (req, res, next) => {
+    try {
+        const { Email, Password, HoTen } = req.body;
+
+        // Kiểm tra email đã tồn tại chưa
+        const existingEmail = await DocGia.findOne({ Email });
+
+        if (existingEmail) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email này đã được sử dụng'
+            });
+        }
+
+        // Tách Họ và Tên
+        const { HoLot, Ten } = tachHoTen(HoTen);
+
+        // Tạo mã độc giả mới
+        const maDG = await taoMaDocGia();
+
+        // Mã hóa mật khẩu
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(Password, salt);
+
+        const docGia = await DocGia.create({
+            MaDG: maDG,
+            Email: Email,
+            Password: hashedPassword,
+            HoLot: HoLot,
+            Ten: Ten,
+            DienThoai: "",
+            DiaChi: "",
+            NgaySinh: "",
+            Phai: "Nam",
+            
+        });
+
+        // Không trả về mật khẩu trong response
+        const response = {
+            ...docGia._doc,
+            Password: undefined
+        };
+
+        res.status(201).json({
+            success: true,
+            message: 'Đăng ký tài khoản độc giả mới thành công',
+            data: response
+        });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: 'Đăng ký thất bại',
+            error: error.message
+        });
+    }
+}
+
+
 // Hàm đổi mật khẩu cũng cần cập nhật để hỗ trợ cả hai loại người dùng
 exports.changePassword = async (req, res, next) => {
     try {
@@ -194,4 +253,40 @@ const findUserById = async (id, role) => {
         console.error('Lỗi khi tìm người dùng:', error);
         return null;
     }
+};
+
+// Hàm tách Họ và Tên
+const tachHoTen = (fullName) => {
+    if (!fullName || typeof fullName !== 'string') {
+        return { HoLot: '', Ten: '' };
+    }
+
+    const parts = fullName.trim().split(' ');
+    if (parts.length === 1) {
+        return { HoLot: '', Ten: parts[0] };
+    }
+
+    const Ten = parts.pop(); // Lấy phần cuối làm Tên
+    const HoLot = parts.join(' '); // Phần còn lại là Họ lót
+
+    return { HoLot, Ten };
+};
+
+// Hàm tạo mã độc giả
+// Tạo mã mới bằng cách lấy số lượng hiện có trong collection và tăng thêm 1
+const taoMaDocGia = async () => {
+    let count = await DocGia.countDocuments();
+    let maDG;
+    let isUnique = false;
+
+    while (!isUnique) {
+        count++;
+        maDG = `DG${String(count).padStart(3, '0')}`;
+        const existingDocGia = await DocGia.findOne({ MaDG: maDG });
+        if (!existingDocGia) {
+            isUnique = true; // Thoát vòng lặp khi tìm được mã không trùng
+        }
+    }
+
+    return maDG;
 };

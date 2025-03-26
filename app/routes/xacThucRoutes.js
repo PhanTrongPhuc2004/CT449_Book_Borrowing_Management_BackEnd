@@ -7,6 +7,9 @@ const authController = require('../controllers/xacThucController');
 // Đăng nhập
 router.post('/dangnhap', authController.login);
 
+// Đăng ký
+ router.post('/dangky', authController.register);
+ 
 // Route bảo vệ - yêu cầu xác thực
 router.use(authController.protect);
 

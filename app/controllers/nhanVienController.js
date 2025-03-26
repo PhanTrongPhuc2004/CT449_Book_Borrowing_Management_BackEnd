@@ -71,26 +71,72 @@ exports.getNhanVienByMa = async (req, res) => {
     }
 };
 
+// Hàm tạo MSNV không trùng lặp
+const taoMaNhanVien = async () => {
+    let count = await NhanVien.countDocuments();
+    let msnv;
+    let isUnique = false;
+
+    while (!isUnique) {
+        count++;
+        msnv = `NV${String(count).padStart(3, '0')}`; // Tạo mã dạng NV001, NV002,...
+        const existingNhanVien = await NhanVien.findOne({ MSNV: msnv });
+        if (!existingNhanVien) {
+            isUnique = true; // Thoát vòng lặp khi tìm được mã không trùng
+        }
+    }
+
+    return msnv;
+};
+// Hàm tách Họ và Tên
+const tachHoTen = (fullName) => {
+    if (!fullName || typeof fullName !== 'string') {
+        return { HoLot: '', Ten: '' };
+    }
+
+    const parts = fullName.trim().split(' ');
+    if (parts.length === 1) {
+        return { HoLot: '', Ten: parts[0] };
+    }
+
+    const Ten = parts.pop(); // Lấy phần cuối làm Tên
+    const HoLot = parts.join(' '); // Phần còn lại là Họ lót
+
+    return { HoLot, Ten };
+};
 // Tạo nhân viên mới
 exports.createNhanVien = async (req, res) => {
     try {
-        // Kiểm tra xem mã số nhân viên đã tồn tại chưa
-        const existingNhanVien = await NhanVien.findOne({ MSNV: req.body.MSNV });
+        // Kiểm tra email đã tồn tại chưa
+        const existingEmail = await NhanVien.findOne({ Email: req.body.Email });
+        
+                if (existingEmail) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Email này đã được sử dụng'
+                    });
+                }
 
-        if (existingNhanVien) {
-            return res.status(400).json({
-                success: false,
-                message: 'Mã số nhân viên này đã tồn tại'
-            });
-        }
+        // Tạo mã số nhân viên mới tự động
+        const msnv = await taoMaNhanVien();
+
+        // Tách Họ và Tên
+        const { HoLot, Ten } = tachHoTen(req.body.HoTen);
 
         // Mã hóa mật khẩu
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(req.body.Password, salt);
 
         const nhanVien = await NhanVien.create({
-            ...req.body,
-            Password: hashedPassword
+            MSNV: msnv, // Sử dụng MSNV tự động tạo
+            HoLot: HoLot || "",
+            Ten: Ten || "",
+            Email: req.body.Email || "",
+            Password: hashedPassword,
+            DienThoai: req.body.DienThoai || "",
+            DiaChi: req.body.DiaChi || "",
+            NgaySinh: req.body.NgaySinh || "",
+            ChucVu: req.body.ChucVu || "",
         });
 
         // Không trả về mật khẩu trong response

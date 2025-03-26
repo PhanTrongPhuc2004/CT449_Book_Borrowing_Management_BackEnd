@@ -9,7 +9,7 @@ const docGiaSchema = new mongoose.Schema({
     HoLot: { type: String, required: true },
     Ten: { type: String, required: true },
     NgaySinh: { type: String },
-    Phai: { type: String, enum: ['Nam', 'Nữ', 'Khác'] },
+    Phai: { type: String, enum: ['Nam', 'Nữ'] },
     DiaChi: { type: String },
     DienThoai: { type: String }
 });

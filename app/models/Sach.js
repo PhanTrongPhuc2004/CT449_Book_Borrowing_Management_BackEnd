@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const sachSchema = new mongoose.Schema({
     MaSach: { type: String, required: true, unique: true },
-    TenSach: { type: String, required: true },
+    TenSach: { type: String, required: true, unique: true },
     MaNXB: { type: mongoose.Schema.Types.ObjectId, ref: 'NhaXuatBan', required: true},
     MaDanhMuc: { type: mongoose.Schema.Types.ObjectId, ref: 'DanhMucSach', required: true},
     DonGia: { type: Number },

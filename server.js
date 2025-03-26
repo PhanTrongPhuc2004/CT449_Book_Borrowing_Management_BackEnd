@@ -12,8 +12,8 @@ process.on('uncaughtException', (err) => {
 // Kết nối database
 mongoose
     .connect(config.databaseUrl, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true
+        // useNewUrlParser: true,
+        // useUnifiedTopology: true
     })
     .then(() => console.log('Kết nối database thành công!'));
 

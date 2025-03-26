@@ -8,6 +8,9 @@ const router = express.Router();
 router.use(authController.protect);
 // router.use(authController.restrictTo('nhanvien'));
 
+// lấy tất cả thông tin mượn sách
+router.get('/', muonTraController.getAll);
+
 // mượn sách
 router.post('/muon', muonTraController.muonSach);
 

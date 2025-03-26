@@ -92,11 +92,28 @@ exports.getSachById = async (req, res) => {
     }
 };
 
+// Hàm tạo MaSach không trùng lặp
+const taoMaSach = async () => {
+    let count = await Sach.countDocuments();
+    let maSach;
+    let isUnique = false;
+
+    while (!isUnique) {
+        count++;
+        maSach = `S${String(count).padStart(3, '0')}`;
+        const existingSach = await Sach.findOne({ MaSach: maSach });
+        if (!existingSach) {
+            isUnique = true; // Thoát vòng lặp khi tìm được mã không trùng
+        }
+    }
+
+    return maSach;
+};
 // Thêm sách mới
 exports.createSach = async (req, res) => {
     try {
-        // Kiểm tra mã sách đã tồn tại chưa
-        const existingSach = await Sach.findOne({ MaSach: req.body.MaSach });
+        // Kiểm tra ten sách đã tồn tại chưa
+        const existingSach = await Sach.findOne({TenSach: req.body.TenSach });
 
         if (existingSach) {
             return res.status(400).json({
@@ -104,8 +121,9 @@ exports.createSach = async (req, res) => {
                 message: 'Mã sách này đã tồn tại'
             });
         }
+        const maSach = await taoMaSach();
 
-        const newSach = await Sach.create(req.body);
+        const newSach = await Sach.create({MaSach: maSach, ...req.body});
 
         res.status(201).json({
             success: true,
@@ -113,6 +131,7 @@ exports.createSach = async (req, res) => {
             data: newSach
         });
     } catch (error) {
+        console.log(error);
         res.status(400).json({
             success: false,
             message: 'Không thể thêm sách mới',
