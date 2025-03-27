@@ -18,7 +18,7 @@ exports.getAll = async (req, res, next) => {
 }
 
 // Mượn sách
-exports.muonSach = async (req, res, next) => {
+exports.yeucaumuonSach = async (req, res, next) => {
     try {
         const { MaDG, MaSach } = req.body;
 
@@ -44,10 +44,14 @@ exports.muonSach = async (req, res, next) => {
             MaDG: docGia._id,
             TrangThai: 'Đang mượn'
         });
-        if (soSachDangMuon >= 5) {
+        const soSachDangYeuCauMuon = await TheoDoiMuonSach.countDocuments({
+            MaDG: docGia._id,
+            TrangThai: 'Yêu cầu'
+        });
+        if ((soSachDangMuon + soSachDangYeuCauMuon) >= 5) {
             return res.status(400).json({
                 status: 'fail',
-                message: 'Bạn đã mượn 5 quyển sách, không thể mượn thêm!'
+                message: 'Bạn đã mượn và yêu cầu 5 quyển sách, không thể yêu cầu mượn thêm!'
             });
         }
 
@@ -74,7 +78,7 @@ exports.muonSach = async (req, res, next) => {
             MaSach: sach._id,
             NgayMuon: new Date(),
             NgayTra: null,
-            TrangThai: 'Đang mượn'
+            TrangThai: 'Yêu cầu'
         });
 
         await muonSach.save();
@@ -272,6 +276,67 @@ exports.lichSuMuonCuaDocGia = async (req, res, next) => {
             status: 'success',
             results: lichSu.length,
             data: { lichSuMuon: lichSu }
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// Xóa thông tin mượn sách
+exports.xoaYeuCauMuonSach = async (req, res, next) => {
+    try {
+        const { MaDG, MaSach } = req.body;
+        console.log(MaDG, MaSach);
+        // Kiểm tra dữ liệu đầu vào
+        if (!MaDG || !MaSach) {
+            return res.status(400).json({
+                status: 'fail',
+                message: 'Vui lòng cung cấp mã độc giả và mã sách'
+            });
+        }
+
+        // Kiểm tra độc giả
+        const docGia = await DocGia.findOne({ MaDG });
+        if (!docGia) {
+            return res.status(404).json({
+                status: 'fail',
+                message: 'Không tìm thấy độc giả với mã này'
+            });
+        }
+
+        // Kiểm tra sách
+        const sach = await Sach.findOne({ MaSach });
+        if (!sach) {
+            return res.status(404).json({
+                status: 'fail',
+                message: 'Không tìm thấy sách với mã này'
+            });
+        }
+
+        // Tìm bản ghi mượn sách
+        const muonSach = await TheoDoiMuonSach.findOne({
+            MaDG: docGia._id,
+            MaSach: sach._id,
+            NgayTra: null
+        });
+
+        if (!muonSach) {
+            return res.status(404).json({
+                status: 'fail',
+                message: 'Không tìm thấy thông tin mượn sách này'
+            });
+        }
+
+        // Xóa thông tin mượn sách
+        await TheoDoiMuonSach.findByIdAndDelete(muonSach._id);
+
+        // Tăng số lượng sách
+        sach.SoQuyen += 1;
+        await sach.save();
+
+        res.status(204).json({
+            status: 'success',
+            data: null
         });
     } catch (err) {
         next(err);

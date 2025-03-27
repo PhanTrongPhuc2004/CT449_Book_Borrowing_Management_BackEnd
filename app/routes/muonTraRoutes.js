@@ -12,7 +12,10 @@ router.use(authController.protect);
 router.get('/', muonTraController.getAll);
 
 // mượn sách
-router.post('/muon', muonTraController.muonSach);
+router.post('/muon', muonTraController.yeucaumuonSach);
+
+// xóa yêu cầu mượn sách
+router.post('/xoayeucau', muonTraController.xoaYeuCauMuonSach);
 
 // trả sách
 router.post('/tra', muonTraController.traSach);

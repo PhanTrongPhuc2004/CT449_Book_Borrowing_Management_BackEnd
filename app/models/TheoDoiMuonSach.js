@@ -7,7 +7,7 @@ const theoDoiMuonSachSchema = new mongoose.Schema({
     NgayTra: { type: Date },
     TrangThai: {
         type: String,
-        enum: ['Đang mượn', 'Đã trả', 'Quá hạn'],
+        enum: ['Đang mượn', 'Đã trả', 'Yêu cầu'],
         default: 'Đang mượn'
     }
 });
